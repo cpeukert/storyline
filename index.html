@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="storyline is a dependency-free visual outline editor for LaTeX documents.">
+  <link rel="canonical" href="https://storyline.acadmc.com/">
+  <title>storyline</title>
+  <style>
+    :root {
+      --paper: #181818;
+      --paper-deep: #0d0d0d;
+      --panel: rgba(11, 11, 11, .94);
+      --ink: #ece7de;
+      --ink-deep: #d7d1c7;
+      --muted: #a7a19a;
+      --line: rgba(236, 231, 222, .42);
+      --line-dark: rgba(236, 231, 222, .9);
+      --accent: #d91635;
+      --accent-dark: #b5102a;
+      --accent-soft: rgba(217, 22, 53, .16);
+      --success: #d91635;
+      --warning: #f0a44c;
+      --warning-soft: rgba(240, 164, 76, .12);
+      --display: "Arial Black", Impact, Haettenschweiler, sans-serif;
+      --body: "Helvetica Neue", Arial, sans-serif;
+      --shadow: 12px 12px 0 rgba(217, 22, 53, .2);
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--paper); }
+    body {
+      min-width: 320px;
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(217, 22, 53, .22), transparent 30%),
+        linear-gradient(180deg, #202020 0%, #161616 42%, var(--paper-deep) 100%);
+      color: var(--ink);
+      color-scheme: dark;
+      font-family: var(--body);
+      position: relative;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(236, 231, 222, .04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(236, 231, 222, .04) 1px, transparent 1px);
+      background-size: 72px 72px;
+      content: "";
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, .7), transparent 92%);
+      opacity: .45;
+      pointer-events: none;
+    }
+
+    button, textarea { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, textarea:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 4px;
+    }
+
+    ::selection { background: var(--accent); color: var(--ink); }
+
+    .page {
+      width: min(1120px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 42px 30px 64px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 22px;
+      border-bottom: 8px solid var(--accent);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      display: grid;
+      width: 50px;
+      height: 50px;
+      place-items: center;
+      border: 4px solid var(--ink);
+      background: var(--accent);
+      box-shadow: 6px 6px 0 rgba(236, 231, 222, .18);
+      font: 24px/1 var(--display);
+    }
+
+    h1 { margin: 0; font: 400 30px/.95 var(--display); letter-spacing: .025em; text-transform: uppercase; }
+    .tagline { margin: 7px 0 0; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+
+    .intro {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+      padding: 28px 2px 20px;
+    }
+
+    .intro p { max-width: 700px; margin: 0; color: var(--ink-deep); font-size: 18px; font-weight: 500; line-height: 1.45; }
+    .intro small { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+
+    .button {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 3px solid var(--line-dark);
+      background: transparent;
+      cursor: pointer;
+      font: 400 11px/1 var(--display);
+      letter-spacing: .045em;
+      text-transform: uppercase;
+    }
+
+    .button:hover:not(:disabled) { border-color: var(--ink); background: var(--ink); color: var(--paper); transform: translate(-2px, -2px); box-shadow: 5px 5px 0 rgba(217, 22, 53, .35); }
+    .button:disabled { cursor: not-allowed; opacity: .4; }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: var(--ink); }
+    .button.primary:hover:not(:disabled) { border-color: var(--ink); background: var(--ink); color: var(--accent); }
+    .button.compact { min-height: 36px; padding-inline: 11px; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 28px;
+    }
+
+    .panel {
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 4px solid var(--line-dark);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      flex-direction: column;
+    }
+
+    .input-panel { min-height: 270px; }
+    .tree-panel { min-height: 540px; }
+
+    .panel-head, .panel-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+    }
+
+    .panel-head { min-height: 72px; border-bottom: 4px solid var(--line-dark); box-shadow: inset 0 7px 0 var(--accent); padding-top: 22px; }
+    .panel-foot { min-height: 62px; border-top: 4px solid var(--line-dark); color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .panel-head h2 { margin: 3px 0 0; font: 400 17px/1 var(--display); letter-spacing: .035em; text-transform: uppercase; }
+    .kicker { margin: 0; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .badge {
+      padding: 6px 8px;
+      background: var(--accent);
+      color: var(--ink);
+      font: 700 9px/1.2 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    textarea {
+      display: block;
+      width: 100%;
+      min-height: 0;
+      padding: 18px 20px;
+      border: 0;
+      background: #111;
+      color: var(--ink-deep);
+      flex: 1;
+      font: 12px/1.6 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      resize: none;
+      tab-size: 2;
+    }
+
+    textarea:focus { background: #161616; }
+    textarea[readonly] { color: var(--ink-deep); }
+    .button-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+
+    .notice {
+      display: none;
+      padding: 10px 15px;
+      border-bottom: 4px solid var(--warning);
+      background: var(--warning-soft);
+      color: #f3c68d;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .notice.show { display: block; }
+
+    .tree {
+      position: relative;
+      overflow: auto;
+      min-height: 0;
+      padding: 16px;
+      background-color: #111;
+      background-image:
+        linear-gradient(rgba(236, 231, 222, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(236, 231, 222, .045) 1px, transparent 1px);
+      background-size: 32px 32px;
+      flex: 1;
+    }
+
+    .root-row {
+      display: flex;
+      width: fit-content;
+      min-height: 40px;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 10px;
+      padding: 6px 10px 6px 7px;
+      border: 3px solid var(--ink);
+      background: var(--accent);
+      color: var(--ink);
+      box-shadow: 5px 5px 0 rgba(217, 22, 53, .24);
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .root-row:hover { background: var(--ink); color: var(--paper); transform: translate(-1px, -1px); }
+
+    .root-symbol {
+      display: grid;
+      width: 27px;
+      height: 27px;
+      place-items: center;
+      border: 2px solid var(--ink);
+      background: var(--ink);
+      color: var(--paper);
+      font-size: 13px;
+    }
+
+    .root-row strong { font-size: 12px; }
+    .root-row.drop-root { outline: 4px solid var(--ink); background: var(--accent-dark); }
+    .root-hint { display: none; margin-left: 3px; color: var(--ink-deep); font-size: 10px; }
+    body.dragging .root-hint { display: inline; }
+
+    .branch { position: relative; margin: 0; padding: 0; list-style: none; }
+    .branch.nested { margin-left: 22px; padding-left: 15px; border-left: 2px solid rgba(236, 231, 222, .34); }
+    .tree-item { position: relative; margin: 7px 0 18px; }
+    .branch.nested > .tree-item::before {
+      position: absolute;
+      top: 21px;
+      left: -15px;
+      width: 11px;
+      height: 2px;
+      background: rgba(236, 231, 222, .34);
+      content: "";
+    }
+
+    .tree-row {
+      position: relative;
+      display: flex;
+      min-height: 43px;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 42px 5px 5px;
+      border: 2px solid var(--line-dark);
+      background: rgba(11, 11, 11, .97);
+      box-shadow: 4px 4px 0 rgba(217, 22, 53, .14);
+    }
+
+    .tree-row:hover { border-color: var(--accent); background: #151515; }
+    .tree-row + .branch.nested { margin-top: 18px; }
+    .tree-row.is-dragged { opacity: .45; }
+    .tree-row.drop-inside { border-color: var(--accent); background: var(--accent-soft); }
+    .tree-row.drop-before::before, .tree-row.drop-after::after {
+      position: absolute;
+      right: 0;
+      left: 0;
+      height: 4px;
+      background: var(--accent);
+      content: "";
+    }
+    .tree-row.drop-before::before { top: -5px; }
+    .tree-row.drop-after::after { bottom: -5px; }
+
+    .collapse, .collapse-spacer {
+      display: grid;
+      width: 25px;
+      height: 31px;
+      flex: 0 0 25px;
+      place-items: center;
+    }
+
+    .collapse {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .collapse:hover { background: var(--accent); color: var(--ink); }
+
+    .handle {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      flex: 0 0 31px;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: grab;
+      font-size: 18px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .handle:hover { background: var(--accent); color: var(--ink); }
+    .handle:active { cursor: grabbing; }
+
+    .add-node {
+      position: absolute;
+      right: 7px;
+      bottom: -14px;
+      z-index: 2;
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      padding: 0;
+      border: 2px solid var(--ink);
+      background: var(--accent);
+      color: var(--ink);
+      cursor: pointer;
+      font: 400 19px/1 var(--display);
+      box-shadow: 3px 3px 0 rgba(217, 22, 53, .28);
+    }
+
+    .add-node:hover { background: var(--ink); color: var(--accent); transform: translate(-1px, -1px); }
+    .kind {
+      flex: 0 0 auto;
+      color: var(--accent);
+      font: 800 8px/1.1 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .title-input {
+      min-width: 0;
+      overflow: hidden;
+      padding: 5px 6px;
+      border: 2px solid transparent;
+      background: transparent;
+      color: var(--ink);
+      flex: 1;
+      font-size: 12px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .title-input:hover { border-color: var(--line); background: #191919; }
+    .title-input:focus { border-color: var(--accent); background: #070707; text-overflow: clip; }
+
+    .child-count {
+      display: grid;
+      width: 20px;
+      height: 20px;
+      margin-left: auto;
+      place-items: center;
+      border: 0;
+      background: var(--accent);
+      color: var(--ink);
+      font-family: var(--display);
+      font-size: 9px;
+    }
+
+    .empty {
+      display: grid;
+      min-height: 420px;
+      place-content: center;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .empty-lines { width: 74px; margin: 0 auto 18px; }
+    .empty-lines i { display: block; height: 8px; margin: 6px 0; border: 2px solid var(--line-dark); background: var(--accent); }
+    .empty-lines i:nth-child(2) { width: 54px; margin-left: 20px; }
+    .empty-lines i:nth-child(3) { width: 35px; margin-left: 39px; }
+    .empty h3 { margin: 0 0 6px; font: 400 19px/1.2 var(--display); text-transform: uppercase; }
+    .empty p { max-width: 270px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--success); box-shadow: 3px 3px 0 rgba(217, 22, 53, .24); }
+    .dirty .dot { background: var(--warning); box-shadow: 3px 3px 0 rgba(240, 164, 76, .22); }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 740px) {
+      .page { padding: 18px 12px 24px; }
+      .topbar { align-items: flex-start; }
+      h1 { font-size: 24px; }
+      .intro { align-items: flex-start; flex-direction: column; }
+      .input-panel { min-height: 300px; }
+      .tree-panel { min-height: 560px; }
+      .branch.nested { margin-left: 12px; padding-left: 10px; }
+      .branch.nested > .tree-item::before { left: -10px; width: 7px; }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .button, .tree-row { transition: background-color 140ms ease, border-color 140ms ease, opacity 140ms ease; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">S</span>
+        <div>
+          <h1>storyline</h1>
+          <p class="tagline">The LaTeX structure editor</p>
+        </div>
+      </div>
+      <button class="button compact" id="exampleButton" type="button">Load example</button>
+    </header>
+
+    <div class="intro">
+      <p>Turn document headings into a tree, then drag whole branches into place.</p>
+      <small>Everything stays in your browser.</small>
+    </div>
+
+    <main class="workspace">
+      <section class="panel input-panel">
+        <header class="panel-head">
+          <div><p class="kicker">Step 1</p><h2>LaTeX input</h2></div>
+          <span class="badge">editable</span>
+        </header>
+        <textarea id="input" aria-label="LaTeX input" spellcheck="false"></textarea>
+        <footer class="panel-foot">
+          <span id="inputInfo">0 lines</span>
+          <button class="button primary" id="buildButton" type="button">Build tree →</button>
+        </footer>
+      </section>
+
+      <section class="panel tree-panel">
+        <header class="panel-head">
+          <div><p class="kicker">Step 2</p><h2>Drag the outline</h2></div>
+          <div class="button-row">
+            <button class="button compact" id="undoButton" type="button" disabled>Undo</button>
+            <button class="button compact" id="redoButton" type="button" disabled>Redo</button>
+            <button class="button primary compact" id="copyButton" type="button">Copy LaTeX</button>
+          </div>
+        </header>
+        <div class="notice" id="notice" role="status"></div>
+        <div class="tree" id="tree" role="tree" aria-label="Document outline"></div>
+        <footer class="panel-foot" id="treeStatus">
+          <span><i class="dot"></i><span id="treeInfo">Ready</span></span>
+          <span>Drag to reorder · + adds a child below</span>
+        </footer>
+      </section>
+
+    </main>
+  </div>
+  <div class="sr-only" id="live" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const LEVELS = ["part", "chapter", "section", "subsection", "subsubsection", "paragraph", "subparagraph"];
+      const LEVEL_SET = new Set(LEVELS);
+      const SKIP_ENVS = new Set(["verbatim", "verbatim*", "lstlisting", "minted", "comment"]);
+      const EXAMPLE = `\\documentclass{article}
+\\title{A Small Research Note}
+\\author{Ada Lovelace}
+
+\\begin{document}
+\\maketitle
+
+\\section{Introduction}
+Why this question matters.
+
+\\subsection{Motivation}
+The motivating observation goes here.
+
+\\subsection{Contribution}
+We make two contributions.
+
+\\section{Research Design}
+\\subsection{Data}
+Description of the sample.
+
+\\subsection{Method}
+Details of the empirical approach.
+
+\\section{Results}
+\\subsection{Main findings}
+The central results go here.
+
+\\subsubsection{Robustness}
+Additional checks.
+
+\\section{Conclusion}
+\\end{document}`;
+
+      const input = document.querySelector("#input");
+      const tree = document.querySelector("#tree");
+      const notice = document.querySelector("#notice");
+      const live = document.querySelector("#live");
+      const inputInfo = document.querySelector("#inputInfo");
+      const treeInfo = document.querySelector("#treeInfo");
+      const treeStatus = document.querySelector("#treeStatus");
+      const buildButton = document.querySelector("#buildButton");
+      const copyButton = document.querySelector("#copyButton");
+      const undoButton = document.querySelector("#undoButton");
+      const redoButton = document.querySelector("#redoButton");
+
+      let model = { prologue: "", nodes: [], epilogue: "", diagnostics: [] };
+      let past = [];
+      let future = [];
+      let collapsed = new Set();
+      let dirty = false;
+      let dragId = null;
+      let nodeCounter = 0;
+      let pendingFocusId = null;
+
+      const lineNumber = (text, index) => text.slice(0, index).split(/\r?\n/).length;
+      const isLetter = char => !!char && /[A-Za-z@]/.test(char);
+      const makeNodeId = () => `node-${Date.now()}-${nodeCounter++}`;
+
+      function isEscaped(text, index) {
+        let count = 0;
+        for (let i = index - 1; i >= 0 && text[i] === "\\"; i--) count++;
+        return count % 2 === 1;
+      }
+
+      function skipTrivia(text, index) {
+        while (index < text.length) {
+          if (/\s/.test(text[index])) { index++; continue; }
+          if (text[index] === "%" && !isEscaped(text, index)) {
+            const nextLine = text.indexOf("\n", index);
+            index = nextLine < 0 ? text.length : nextLine + 1;
+            continue;
+          }
+          break;
+        }
+        return index;
+      }
+
+      function readBalanced(text, index, open, close) {
+        if (text[index] !== open) return null;
+        let depth = 0;
+        for (let i = index; i < text.length; i++) {
+          if (text[i] === "%" && !isEscaped(text, i)) {
+            const nextLine = text.indexOf("\n", i);
+            if (nextLine < 0) return null;
+            i = nextLine;
+            continue;
+          }
+          if (text[i] === open && !isEscaped(text, i)) depth++;
+          if (text[i] === close && !isEscaped(text, i)) {
+            depth--;
+            if (depth === 0) return { start: index, end: i + 1, inner: text.slice(index + 1, i) };
+          }
+        }
+        return null;
+      }
+
+      function readBracedArgument(text, index) {
+        const start = skipTrivia(text, index);
+        return readBalanced(text, start, "{", "}");
+      }
+
+      function parseHeading(text, start, commandEnd, command) {
+        let cursor = skipTrivia(text, commandEnd);
+        if (text[cursor] === "*") cursor = skipTrivia(text, cursor + 1);
+        if (text[cursor] === "[") {
+          const optional = readBalanced(text, cursor, "[", "]");
+          if (!optional) return null;
+          cursor = skipTrivia(text, optional.end);
+        }
+        const title = readBalanced(text, cursor, "{", "}");
+        if (!title) return null;
+        return {
+          start,
+          commandEnd,
+          end: title.end,
+          command,
+          titleRaw: title.inner,
+          headingTail: text.slice(commandEnd, title.end),
+          titleStartOffset: title.start + 1 - commandEnd,
+          titleEndOffset: title.end - 1 - commandEnd
+        };
+      }
+
+      function scan(text) {
+        const headings = [];
+        const diagnostics = [];
+        let documentStart = null;
+        let documentEnd = null;
+
+        for (let i = 0; i < text.length;) {
+          if (text[i] === "%" && !isEscaped(text, i)) {
+            const nextLine = text.indexOf("\n", i);
+            i = nextLine < 0 ? text.length : nextLine + 1;
+            continue;
+          }
+          if (text[i] !== "\\" || isEscaped(text, i)) { i++; continue; }
+
+          const start = i;
+          i++;
+          const wordStart = i;
+          while (isLetter(text[i])) i++;
+          const command = text.slice(wordStart, i);
+          if (!command) continue;
+
+          if (command === "verb") {
+            if (text[i] === "*") i++;
+            const delimiter = text[i];
+            if (delimiter && !/\s/.test(delimiter)) {
+              const end = text.indexOf(delimiter, i + 1);
+              i = end < 0 ? text.length : end + 1;
+            }
+            continue;
+          }
+
+          if (command === "begin" || command === "end") {
+            const argument = readBracedArgument(text, i);
+            if (argument) {
+              const environment = argument.inner.trim();
+              if (command === "begin" && environment === "document" && documentStart === null) documentStart = argument.end;
+              if (command === "end" && environment === "document" && documentStart !== null && documentEnd === null) documentEnd = start;
+              if (command === "begin" && SKIP_ENVS.has(environment)) {
+                const closing = `\\end{${environment}}`;
+                const closingAt = text.indexOf(closing, argument.end);
+                i = closingAt < 0 ? text.length : closingAt + closing.length;
+              } else {
+                i = argument.end;
+              }
+            }
+            continue;
+          }
+
+          if (LEVEL_SET.has(command)) {
+            const heading = parseHeading(text, start, i, command);
+            if (heading) {
+              headings.push(heading);
+              i = heading.end;
+            } else {
+              diagnostics.push(`Line ${lineNumber(text, start)}: could not read \\${command}; it was left unchanged.`);
+            }
+          }
+        }
+
+        const active = documentStart === null
+          ? headings
+          : headings.filter(item => item.start >= documentStart && (documentEnd === null || item.start < documentEnd));
+
+        return { headings: active, diagnostics, documentEnd };
+      }
+
+      function plainTitle(raw) {
+        const cleaned = raw
+          .replace(/%[^\r\n]*/g, " ")
+          .replace(/\\(?:textbf|textit|emph|textrm|textsf|texttt)\s*\{([^{}]*)\}/g, "$1")
+          .replace(/\\[A-Za-z@]+\*?/g, "")
+          .replace(/[{}]/g, "")
+          .replace(/\\([%&#_$])/g, "$1")
+          .replace(/\s+/g, " ")
+          .trim();
+        return cleaned || "Untitled";
+      }
+
+      function parseDocument(text) {
+        const result = scan(text);
+        if (!result.headings.length) {
+          return { prologue: text, nodes: [], epilogue: "", diagnostics: result.diagnostics };
+        }
+
+        const nodes = result.headings.map((heading, index) => {
+          const next = result.headings[index + 1];
+          const bodyEnd = next ? next.start : (result.documentEnd !== null && result.documentEnd > heading.end ? result.documentEnd : text.length);
+          return {
+            id: makeNodeId(),
+            level: LEVELS.indexOf(heading.command),
+            titleRaw: heading.titleRaw,
+            title: plainTitle(heading.titleRaw),
+            prefix: "",
+            headingTail: heading.headingTail,
+            titleStartOffset: heading.titleStartOffset,
+            titleEndOffset: heading.titleEndOffset,
+            body: text.slice(heading.end, bodyEnd)
+          };
+        });
+
+        const first = result.headings[0];
+        const last = result.headings[result.headings.length - 1];
+        const epilogueStart = result.documentEnd !== null && result.documentEnd > last.end ? result.documentEnd : text.length;
+        return {
+          prologue: text.slice(0, first.start),
+          nodes,
+          epilogue: text.slice(epilogueStart),
+          diagnostics: result.diagnostics
+        };
+      }
+
+      function serialize() {
+        return model.prologue + model.nodes.map(node => `${node.prefix || ""}\\${LEVELS[node.level]}${node.headingTail}${node.body}`).join("") + model.epilogue;
+      }
+
+      function cloneNodes(nodes) {
+        return nodes.map(node => ({ ...node }));
+      }
+
+      function buildNested(nodes) {
+        const roots = [];
+        const stack = [];
+        nodes.forEach((node, index) => {
+          const item = { node, index, children: [] };
+          while (stack.length && stack[stack.length - 1].node.level >= node.level) stack.pop();
+          if (stack.length) stack[stack.length - 1].children.push(item);
+          else roots.push(item);
+          stack.push(item);
+        });
+        return roots;
+      }
+
+      function subtreeEnd(nodes, start) {
+        const level = nodes[start].level;
+        let end = start + 1;
+        while (end < nodes.length && nodes[end].level > level) end++;
+        return end;
+      }
+
+      function announce(message) {
+        live.textContent = "";
+        requestAnimationFrame(() => { live.textContent = message; });
+      }
+
+      function showNotice(messages) {
+        notice.textContent = messages.join(" ");
+        notice.classList.toggle("show", messages.length > 0);
+      }
+
+      function clearDropClasses() {
+        document.querySelectorAll(".drop-before, .drop-after, .drop-inside, .drop-root")
+          .forEach(element => {
+            element.classList.remove("drop-before", "drop-after", "drop-inside", "drop-root");
+            delete element.dataset.dropMode;
+          });
+      }
+
+      function dragRangeContains(targetId) {
+        const start = model.nodes.findIndex(node => node.id === dragId);
+        const target = model.nodes.findIndex(node => node.id === targetId);
+        return start >= 0 && target >= start && target < subtreeEnd(model.nodes, start);
+      }
+
+      function renderBranch(items, depth = 0) {
+        const list = document.createElement("ul");
+        list.className = depth ? "branch nested" : "branch";
+
+        items.forEach(item => {
+          const li = document.createElement("li");
+          li.className = "tree-item";
+          li.setAttribute("role", "treeitem");
+          li.setAttribute("aria-level", String(depth + 1));
+          if (item.children.length) li.setAttribute("aria-expanded", String(!collapsed.has(item.node.id)));
+
+          const row = document.createElement("div");
+          row.className = "tree-row";
+          row.dataset.id = item.node.id;
+
+          let collapseControl;
+          if (item.children.length) {
+            collapseControl = document.createElement("button");
+            collapseControl.className = "collapse";
+            collapseControl.type = "button";
+            collapseControl.textContent = collapsed.has(item.node.id) ? "›" : "⌄";
+            collapseControl.setAttribute("aria-label", `${collapsed.has(item.node.id) ? "Expand" : "Collapse"} ${item.node.title}`);
+            collapseControl.addEventListener("click", () => {
+              if (collapsed.has(item.node.id)) collapsed.delete(item.node.id);
+              else collapsed.add(item.node.id);
+              renderTree();
+              announce(`${item.node.title} ${collapsed.has(item.node.id) ? "collapsed" : "expanded"}.`);
+            });
+          } else {
+            collapseControl = document.createElement("span");
+            collapseControl.className = "collapse-spacer";
+            collapseControl.setAttribute("aria-hidden", "true");
+          }
+
+          const handle = document.createElement("button");
+          handle.className = "handle";
+          handle.type = "button";
+          handle.draggable = true;
+          handle.textContent = "⠿";
+          handle.title = `Drag ${item.node.title}`;
+          handle.setAttribute("aria-label", `Drag ${LEVELS[item.node.level]} ${item.node.title}`);
+
+          const kind = document.createElement("span");
+          kind.className = "kind";
+          kind.textContent = LEVELS[item.node.level];
+
+          const title = document.createElement("input");
+          title.className = "title-input";
+          title.type = "text";
+          title.dataset.nodeId = item.node.id;
+          title.value = item.node.titleRaw.replace(/\s+/g, " ").trim();
+          title.placeholder = "Untitled";
+          title.title = "Edit title (LaTeX is allowed)";
+          title.setAttribute("aria-label", `Edit ${LEVELS[item.node.level]} title`);
+
+          let editSnapshot = null;
+          let editStarted = false;
+          title.addEventListener("focus", () => {
+            editSnapshot = cloneNodes(model.nodes);
+            editStarted = false;
+          });
+          title.addEventListener("input", () => {
+            if (!editStarted) {
+              past.push(editSnapshot || cloneNodes(model.nodes));
+              future = [];
+              editStarted = true;
+            }
+            const before = item.node.headingTail.slice(0, item.node.titleStartOffset);
+            const after = item.node.headingTail.slice(item.node.titleEndOffset);
+            item.node.titleRaw = title.value;
+            item.node.title = plainTitle(title.value);
+            item.node.headingTail = before + title.value + after;
+            item.node.titleEndOffset = item.node.titleStartOffset + title.value.length;
+            handle.title = `Drag ${item.node.title}`;
+            handle.setAttribute("aria-label", `Drag ${LEVELS[item.node.level]} ${item.node.title}`);
+            undoButton.disabled = past.length === 0;
+            redoButton.disabled = true;
+          });
+          title.addEventListener("change", () => {
+            if (editStarted) announce(`Renamed heading to ${item.node.title}.`);
+          });
+          title.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              title.blur();
+            }
+            event.stopPropagation();
+          });
+
+          row.append(collapseControl, handle, kind, title);
+          if (item.node.level < LEVELS.length - 1) {
+            const childKind = LEVELS[item.node.level + 1];
+            const add = document.createElement("button");
+            add.className = "add-node";
+            add.type = "button";
+            add.textContent = "+";
+            add.title = `Add ${childKind} below`;
+            add.setAttribute("aria-label", `Add ${childKind} below ${item.node.title}`);
+            add.addEventListener("click", event => {
+              event.stopPropagation();
+              addChildBelow(item.node.id);
+            });
+            row.append(add);
+          }
+          const children = item.children.length;
+          if (children) {
+            const count = document.createElement("span");
+            count.className = "child-count";
+            count.textContent = String(children);
+            count.title = `${children} direct ${children === 1 ? "child" : "children"}`;
+            row.append(count);
+          }
+
+          handle.addEventListener("dragstart", event => {
+            dragId = item.node.id;
+            document.body.classList.add("dragging");
+            row.classList.add("is-dragged");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", item.node.id);
+          });
+
+          handle.addEventListener("dragend", () => {
+            dragId = null;
+            document.body.classList.remove("dragging");
+            clearDropClasses();
+            document.querySelectorAll(".is-dragged").forEach(element => element.classList.remove("is-dragged"));
+          });
+
+          row.addEventListener("dragover", event => {
+            if (!dragId || dragRangeContains(item.node.id)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            clearDropClasses();
+            const rect = row.getBoundingClientRect();
+            const ratio = (event.clientY - rect.top) / rect.height;
+            const mode = ratio < .28 ? "before" : ratio > .72 ? "after" : "inside";
+            if (mode === "inside" && item.node.level >= LEVELS.length - 1) return;
+            row.classList.add(`drop-${mode}`);
+            row.dataset.dropMode = mode;
+            event.dataTransfer.dropEffect = "move";
+          });
+
+          row.addEventListener("drop", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const mode = row.dataset.dropMode;
+            if (mode) moveNode(dragId, item.node.id, mode);
+          });
+
+          li.append(row);
+          if (item.children.length && !collapsed.has(item.node.id)) li.append(renderBranch(item.children, depth + 1));
+          list.append(li);
+        });
+        return list;
+      }
+
+      function renderTree() {
+        tree.replaceChildren();
+        const root = document.createElement("button");
+        root.className = "root-row";
+        root.type = "button";
+        root.innerHTML = '<span class="root-symbol" aria-hidden="true">+</span><strong>Add section</strong><span class="root-hint">drop here for top level</span>';
+        root.addEventListener("click", addRootSection);
+        root.addEventListener("dragover", event => {
+          if (!dragId) return;
+          event.preventDefault();
+          clearDropClasses();
+          root.classList.add("drop-root");
+          event.dataTransfer.dropEffect = "move";
+        });
+        root.addEventListener("drop", event => {
+          event.preventDefault();
+          moveNode(dragId, null, "root");
+        });
+        tree.append(root);
+
+        if (!model.nodes.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.innerHTML = '<span class="empty-lines" aria-hidden="true"><i></i><i></i><i></i></span><h3>No headings found</h3><p>Add a \\section, \\subsection, or related command, then build the tree.</p>';
+          tree.append(empty);
+          return;
+        }
+        tree.append(renderBranch(buildNested(model.nodes)));
+        if (pendingFocusId) {
+          const focusId = pendingFocusId;
+          pendingFocusId = null;
+          requestAnimationFrame(() => {
+            const editor = tree.querySelector(`.title-input[data-node-id="${focusId}"]`);
+            if (editor) {
+              editor.focus();
+              editor.select();
+            }
+          });
+        }
+      }
+
+      function updateView() {
+        renderTree();
+        const count = model.nodes.length;
+        treeInfo.textContent = count ? `${count} ${count === 1 ? "heading" : "headings"}` : "No headings";
+        undoButton.disabled = past.length === 0;
+        redoButton.disabled = future.length === 0;
+      }
+
+      function buildFromInput() {
+        model = parseDocument(input.value);
+        past = [];
+        future = [];
+        collapsed = new Set();
+        dirty = false;
+        treeStatus.classList.remove("dirty");
+        showNotice(model.diagnostics);
+        updateView();
+        announce(model.nodes.length ? `Built a tree with ${model.nodes.length} headings.` : "No headings were found.");
+      }
+
+      function moveNode(sourceId, targetId, mode) {
+        const sourceIndex = model.nodes.findIndex(node => node.id === sourceId);
+        if (sourceIndex < 0) return;
+        const end = subtreeEnd(model.nodes, sourceIndex);
+        const blockIds = new Set(model.nodes.slice(sourceIndex, end).map(node => node.id));
+        if (targetId && blockIds.has(targetId)) return;
+
+        let wantedLevel;
+        if (mode === "root") {
+          const roots = buildNested(model.nodes).map(item => item.node.level);
+          wantedLevel = roots.length ? Math.min(...roots) : model.nodes[sourceIndex].level;
+        } else {
+          const target = model.nodes.find(node => node.id === targetId);
+          if (!target) return;
+          wantedLevel = target.level + (mode === "inside" ? 1 : 0);
+        }
+
+        const delta = wantedLevel - model.nodes[sourceIndex].level;
+        const block = model.nodes.slice(sourceIndex, end).map(node => ({ ...node, level: node.level + delta }));
+        if (block.some(node => node.level < 0 || node.level >= LEVELS.length)) {
+          showNotice(["That move would exceed LaTeX's supported heading depth."]);
+          announce("Move not allowed.");
+          return;
+        }
+
+        past.push(cloneNodes(model.nodes));
+        future = [];
+        const remaining = model.nodes.filter(node => !blockIds.has(node.id));
+        let insertAt = remaining.length;
+        if (mode !== "root") {
+          const targetIndex = remaining.findIndex(node => node.id === targetId);
+          insertAt = mode === "before" ? targetIndex : subtreeEnd(remaining, targetIndex);
+        }
+        remaining.splice(insertAt, 0, ...block);
+        model.nodes = remaining;
+        showNotice(model.diagnostics);
+        updateView();
+        announce(`Moved ${block[0].title}.`);
+      }
+
+      function makeNewNode(level, lineBreak) {
+        const titleRaw = `New ${LEVELS[level]}`;
+        return {
+          id: makeNodeId(),
+          level,
+          titleRaw,
+          title: titleRaw,
+          prefix: lineBreak + lineBreak,
+          headingTail: `{${titleRaw}}`,
+          titleStartOffset: 1,
+          titleEndOffset: titleRaw.length + 1,
+          body: lineBreak + lineBreak
+        };
+      }
+
+      function addRootSection() {
+        past.push(cloneNodes(model.nodes));
+        future = [];
+
+        if (!model.nodes.length) {
+          const boundary = scan(model.prologue).documentEnd;
+          if (boundary !== null) {
+            model.epilogue = model.prologue.slice(boundary) + model.epilogue;
+            model.prologue = model.prologue.slice(0, boundary);
+          }
+        }
+
+        const lineBreak = input.value.includes("\r\n") ? "\r\n" : "\n";
+        const added = makeNewNode(LEVELS.indexOf("section"), lineBreak);
+        model.nodes.push(added);
+        pendingFocusId = added.id;
+        showNotice(model.diagnostics);
+        updateView();
+        announce("Added a new section.");
+      }
+
+      function addChildBelow(nodeId) {
+        const sourceIndex = model.nodes.findIndex(node => node.id === nodeId);
+        if (sourceIndex < 0) return;
+
+        const parent = model.nodes[sourceIndex];
+        if (parent.level >= LEVELS.length - 1) return;
+
+        past.push(cloneNodes(model.nodes));
+        future = [];
+
+        const insertAt = subtreeEnd(model.nodes, sourceIndex);
+        const lineBreak = input.value.includes("\r\n") ? "\r\n" : "\n";
+        const childLevel = parent.level + 1;
+        const added = makeNewNode(childLevel, lineBreak);
+
+        model.nodes.splice(insertAt, 0, added);
+        collapsed.delete(parent.id);
+        pendingFocusId = added.id;
+        showNotice(model.diagnostics);
+        updateView();
+        announce(`Added a new ${LEVELS[added.level]} below ${parent.title}.`);
+      }
+
+      function restore(from, to, message) {
+        if (!from.length) return;
+        to.push(cloneNodes(model.nodes));
+        model.nodes = from.pop();
+        updateView();
+        announce(message);
+      }
+
+      input.addEventListener("input", () => {
+        inputInfo.textContent = `${input.value.split(/\r?\n/).length} lines`;
+        if (!dirty) {
+          dirty = true;
+          treeStatus.classList.add("dirty");
+          treeInfo.textContent = "Input changed — rebuild when ready";
+        }
+      });
+
+      buildButton.addEventListener("click", buildFromInput);
+      document.querySelector("#exampleButton").addEventListener("click", () => {
+        input.value = EXAMPLE;
+        inputInfo.textContent = `${EXAMPLE.split("\n").length} lines`;
+        buildFromInput();
+      });
+      undoButton.addEventListener("click", () => restore(past, future, "Move undone."));
+      redoButton.addEventListener("click", () => restore(future, past, "Move restored."));
+
+      copyButton.addEventListener("click", async () => {
+        const latex = serialize();
+        let copied = false;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(latex);
+            copied = true;
+          }
+        } catch (_) {}
+        if (!copied) {
+          const active = document.activeElement;
+          const temporary = document.createElement("textarea");
+          temporary.value = latex;
+          temporary.setAttribute("readonly", "");
+          temporary.style.position = "fixed";
+          temporary.style.left = "-9999px";
+          document.body.append(temporary);
+          try {
+            temporary.select();
+            copied = document.execCommand("copy");
+          } catch (_) {}
+          temporary.remove();
+          if (active && active.focus) active.focus();
+        }
+        const original = copyButton.textContent;
+        copyButton.textContent = copied ? "Copied" : "Copy failed";
+        announce(copied ? "LaTeX copied to the clipboard." : "Copy was blocked by the browser.");
+        setTimeout(() => { copyButton.textContent = original; }, 1500);
+      });
+
+      document.addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z" && document.activeElement !== input) {
+          event.preventDefault();
+          restore(past, future, "Move undone.");
+        }
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "z" && document.activeElement !== input) {
+          event.preventDefault();
+          restore(future, past, "Move restored.");
+        }
+        if (event.key === "Escape") {
+          dragId = null;
+          document.body.classList.remove("dragging");
+          clearDropClasses();
+        }
+      });
+
+      input.value = EXAMPLE;
+      inputInfo.textContent = `${EXAMPLE.split("\n").length} lines`;
+      buildFromInput();
+    })();
+  </script>
+</body>
+</html>
